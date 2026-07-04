@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>情侣存钱小银行｜微信支付宝记账</title>
+<!-- Firebase 云端CDN，GitHub Pages可正常加载 -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+}
+body{
+  background: #fff8fd;
+  padding: 20px 14px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+/* 头部标题 */
+.header{
+  text-align: center;
+  margin-bottom: 30px;
+}
+.header h1{
+  font-size: 28px;
+  background: linear-gradient(90deg,#ff6699,#7b61ff,#4cd9b8);
+  -webkit-background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+.header p{
+  margin-top:6px;
+  color:#999;
+  font-size:14px;
+}
+/* 总资产卡片 彩虹渐变 */
+.balance-card{
+  background: linear-gradient(135deg,#ffd6e0,#fff0d6,#d6f5ff);
+  border-radius: 24px;
+  padding: 32px 20px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(255,120,180,0.15);
+  margin-bottom: 24px;
+}
+.balance-label{
+  font-size:16px;
+  color:#a85274;
+  margin-bottom:10px;
+}
+.balance-num{
+  font-size:44px;
+  font-weight:800;
+  color:#c84a7a;
+}
+.balance-unit{
+  font-size:20px;
+}
+/* 通用卡片 */
+.card{
+  background:#ffffff;
+  border-radius:22px;
+  padding:26px;
+  box-shadow:0 4px 14px rgba(200,90,140,0.08);
+  margin-bottom:22px;
+}
+.card-title{
+  font-size:19px;
+  font-weight:600;
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.card-title::before{
+  content:"";
+  width:5px;
+  height:20px;
+  background:linear-gradient(#ff74a8,#7b61ff);
+  border-radius:3px;
+}
+/* 双栏布局 */
+.row-two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:16px;
+}
+@media(max-width:620px){
+  .row-two{grid-template-columns:1fr;}
+  .balance-num{font-size:32px;}
+}
+.form-item label{
+  display:block;
+  font-size:14px;
+  color:#555;
+  margin-bottom:7px;
+}
+input,select,textarea{
+  width:100%;
+  padding:14px 16px;
+  border:2px solid #f0e6f0;
+  border-radius:16px;
+  font-size:15px;
+  background:#fefbfe;
+  transition:0.25s;
+  outline:none;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:#ff88bb;
+  box-shadow:0 0 0 4px rgba(255,136,187,0.18);
+}
+textarea{
+  min-height:90px;
+  resize:none;
+}
+/* 渠道标签选择 */
+.channel-box{
+  display:flex;
+  gap:12px;
+  margin-bottom:16px;
+}
+.channel-item{
+  flex:1;
+  text-align:center;
+  padding:14px 0;
+  border-radius:16px;
+  border:2px solid #eee;
+  cursor:pointer;
+  font-weight:500;
+  transition:0.2s;
+}
+.channel-wechat{
+  background:#f0fff4;
+  color:#07c160;
+}
+.channel-alipay{
+  background:#fff7f0;
+  color:#ff7d00;
+}
+.channel-item.active{
+  border-width:2px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.06);
+}
+/* 图片上传 */
+.upload-box{
+  border:2px dashed #ffb6d0;
+  border-radius:16px;
+  padding:20px;
+  text-align:center;
+  color:#cc7799;
+  cursor:pointer;
+  margin-bottom:10px;
+}
+#imgPreview{
+  max-width:100%;
+  max-height:220px;
+  border-radius:12px;
+  margin-top:12px;
+  display:none;
+}
+/* 按钮组 */
+.btn-group{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:24px;
+}
+button{
+  padding:13px 24px;
+  border:none;
+  border-radius:16px;
+  font-size:15px;
+  font-weight:500;
+  cursor:pointer;
+  transition:0.25s;
+}
+button:hover{
+  transform:translateY(-2px);
+}
+.btn-save{
+  background:linear-gradient(135deg,#ff74a8,#ff8ec2);
+  color:#fff;
+}
+.btn-cancel{
+  background:#eee;
+  color:#666;
+}
+.btn-edit{
+  background:#d6e9ff;
+  color:#3377dd;
+  padding:4px 10px;
+  font-size:12px;
+}
+.btn-del{
+  background:#ffe6ef;
+  color:#dd4477;
+  padding:4px 10px;
+  font-size:12px;
+}
+/* 流水列表 */
+.list-item{
+  padding:20px 0;
+  border-bottom:1px solid #f6eef4;
+}
+.list-item:last-child{
+  border-bottom:none;
+}
+.list-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+.list-type{
+  font-weight:600;
+  font-size:16px;
+}
+.type-save{color:#27b972;}
+.type-take{color:#e84a78;}
+.list-money{
+  font-size:18px;
+  font-weight:700;
+}
+.money-add{color:#27b972;}
+.money-minus{color:#e84a78;}
+.list-meta{
+  font-size:13px;
+  color:#888;
+  line-height:1.6;
+  margin-bottom:10px;
+}
+.list-img{
+  max-width:160px;
+  max-height:140px;
+  border-radius:10px;
+  border:1px solid #f0d6e0;
+}
+.list-btn-wrap{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+}
+/* 弹窗编辑框 */
+.edit-modal{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+  padding:15px;
+}
+.edit-modal.show{display:flex;}
+.modal-content{
+  width:100%;
+  max-width:600px;
+  background:#fff;
+  border-radius:24px;
+  padding:26px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+/* 空状态 */
+.empty-tip{
+  text-align:center;
+  padding:60px 20px;
+  color:#bbb;
+  font-size:15px;
+}
+/* 提示弹窗 */
+.toast{
+  position:fixed;
+  top:30px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(40,40,40,0.85);
+  color:#fff;
+  padding:14px 28px;
+  border-radius:14px;
+  font-size:14px;
+  opacity:0;
+  pointer-events:none;
+  transition:0.3s;
+  z-index:1000;
+}
+.toast.show{opacity:1;}
+.file-hidden{display:none;}
+</style>
+</head>
+<body>
+<!-- 消息提示 -->
+<div class="toast" id="toastBox"></div>
+
+<!-- 编辑弹窗 -->
+<div class="edit-modal" id="editModal">
+  <div class="modal-content">
+    <div class="card-title">修改存款记录</div>
+    <input type="hidden" id="editId">
+    <div class="form-item">
+      <label>操作渠道</label>
+      <div class="channel-box">
+        <div class="channel-item channel-wechat" data-channel="微信" onclick="selectEditChannel('微信')">微信</div>
+        <div class="channel-item channel-alipay" data-channel="支付宝" onclick="selectEditChannel('支付宝')">支付宝</div>
+      </div>
+      <input type="hidden" id="editChannel">
+    </div>
+    <div class="row-two">
+      <div class="form-item">
+        <label>操作类型</label>
+        <select id="editOpt">
+          <option value="save">存入</option>
+          <option value="take">支取</option>
+        </select>
+      </div>
+      <div class="form-item">
+        <label>金额</label>
+        <input type="number" step="0.01" min="0.01" id="editMoney" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-item">
+      <label>备注</label>
+      <textarea id="editDesc"></textarea>
+    </div>
+    <div class="form-item">
+      <label>替换转账截图（不选则保留原图）</label>
+      <div class="upload-box" onclick="document.getElementById('editImgFile').click()">点击上传图片</div>
+      <input class="file-hidden" type="file" id="editImgFile" accept="image/*" onchange="previewEditImg(event)">
+      <img id="editImgPreview">
+    </div>
+    <div class="btn-group">
+      <button class="btn-save" onclick="submitEdit()">保存修改</button>
+      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <h1>💖 情侣存钱小银行</h1>
+  <p>微信/支付宝转账记录｜云端实时同步｜可存可取可修改</p>
+</div>
+
+<!-- 总资产卡片 -->
+<div class="balance-card">
+  <div class="balance-label">伴侣当前寄存总金额</div>
+  <div class="balance-num"><span id="totalBalance">0.00</span> <span class="balance-unit">元</span></div>
+</div>
+
+<!-- 新增存取款表单 -->
+<div class="card">
+  <div class="card-title">新建一笔资金记录</div>
+  <div class="form-item">
+    <label>转账渠道</label>
+    <div class="channel-box">
+      <div class="channel-item channel-wechat active" data-val="微信" onclick="selectChannel(this)">微信</div>
+      <div class="channel-item channel-alipay" data-val="支付宝" onclick="selectChannel(this)">支付宝</div>
+    </div>
+    <input type="hidden" id="payChannel" value="微信">
+  </div>
+  <div class="row-two">
+    <div class="form-item">
+      <label>操作类型</label>
+      <select id="optType">
+        <option value="save">伴侣存入（存钱）</option>
+        <option value="take">伴侣支取（取钱）</option>
+      </select>
+    </div>
+    <div class="form-item">
+      <label>金额（元）</label>
+      <input type="number" step="0.01" min="0.01" id="moneyInput" placeholder="输入金额">
+    </div>
+  </div>
+  <div class="form-item">
+    <label>备注说明</label>
+    <textarea id="descInput" placeholder="例：生日储蓄、买衣服支取、月度零花钱"></textarea>
+  </div>
+  <div class="form-item">
+    <label>上传转账截图（可选）</label>
+    <div class="upload-box" onclick="document.getElementById('imgFile').click()">点击选择图片上传</div>
+    <input class="file-hidden" type="file" id="imgFile" accept="image/*" onchange="previewImg(event)">
+    <img id="imgPreview">
+  </div>
+  <div class="btn-group">
+    <button class="btn-save" onclick="submitRecord()">提交记录，同步云端</button>
+  </div>
+</div>
+
+<!-- 全部流水记录 -->
+<div class="card">
+  <div class="card-title">全部存取流水（可编辑）</div>
+  <div id="recordList"></div>
+</div>
+
+<script>
+// ===================== 填入你自己的 Firebase 配置 =====================
+const firebaseConfig = {
+  apiKey: "你的apiKey",
+  authDomain: "xxx.firebaseapp.com",
+  databaseURL: "https://xxx-default-rtdb.firebaseio.com/",
+  projectId: "xxx",
+  storageBucket: "xxx.appspot.com",
+  messagingSenderId: "xxx",
+  appId: "xxx"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const saveRef = db.ref("coupleSaveBank");
+let allRecords = [];
+let tempBase64Img = "";
+let editBase64Img = "";
+
+// 消息提示
+function showToast(msg){
+  const t = document.getElementById("toastBox");
+  t.innerText = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+// 选择微信/支付宝渠道
+function selectChannel(el){
+  document.querySelectorAll(".channel-box .channel-item").forEach(i=>i.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("payChannel").value = el.dataset.val;
+}
+function selectEditChannel(name){
+  document.querySelectorAll("#editModal .channel-item").forEach(i=>i.classList.remove("active"));
+  document.querySelector(`#editModal [data-channel="${name}"]`).classList.add("active");
+  document.getElementById("editChannel").value = name;
+}
+
+// 图片预览 转base64存储云端
+function previewImg(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = res=>{
+    tempBase64Img = res.target.result;
+    const img = document.getElementById("imgPreview");
+    img.src = tempBase64Img;
+    img.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+}
+function previewEditImg(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = res=>{
+    editBase64Img = res.target.result;
+    const img = document.getElementById("editImgPreview");
+    img.src = editBase64Img;
+    img.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+}
+
+// 打开编辑弹窗填充数据
+function openEditModal(id){
+  const item = allRecords.find(i=>i.id === id);
+  if(!item) return;
+  document.getElementById("editId").value = item.id;
+  document.getElementById("editOpt").value = item.type;
+  document.getElementById("editMoney").value = item.money;
+  document.getElementById("editDesc").value = item.desc;
+  document.getElementById("editChannel").value = item.channel;
+  selectEditChannel(item.channel);
+  editBase64Img = item.img || "";
+  const preview = document.getElementById("editImgPreview");
+  if(editBase64Img){
+    preview.src = editBase64Img;
+    preview.style.display = "block";
+  }else preview.style.display = "none";
+  document.getElementById("editModal").classList.add("show");
+}
+function closeEditModal(){
+  document.getElementById("editModal").classList.remove("show");
+  editBase64Img = "";
+  document.getElementById("editImgPreview").style.display = "none";
+}
+
+// 提交新建记录
+function submitRecord(){
+  const channel = document.getElementById("payChannel").value;
+  const type = document.getElementById("optType").value;
+  const money = Number(document.getElementById("moneyInput").value);
+  const desc = document.getElementById("descInput").value.trim();
+  if(isNaN(money) || money <= 0) return showToast("请输入合法金额");
+  // 余额校验
+  let balance = calcBalance();
+  if(type === "take" && money > balance) return showToast(`当前余额仅${balance.toFixed(2)}元，无法支取`);
+  const record = {
+    id: Date.now(),
+    channel: channel,
+    type: type,
+    money: money,
+    desc: desc,
+    img: tempBase64Img,
+    time: new Date().toLocaleString()
+  };
+  allRecords.unshift(record);
+  saveRef.set(allRecords);
+  // 清空表单
+  document.getElementById("moneyInput").value = "";
+  document.getElementById("descInput").value = "";
+  document.getElementById("imgFile").value = "";
+  document.getElementById("imgPreview").style.display = "none";
+  tempBase64Img = "";
+  showToast("记录提交成功，云端同步完成！");
+}
+
+// 提交编辑修改
+function submitEdit(){
+  const id = Number(document.getElementById("editId").value);
+  const channel = document.getElementById("editChannel").value;
+  const type = document.getElementById("editOpt").value;
+  const money = Number(document.getElementById("editMoney").value);
+  const desc = document.getElementById("editDesc").value.trim();
+  if(isNaN(money) || money <= 0) return showToast("金额格式错误");
+  // 替换图片
+  const target = allRecords.find(i=>i.id === id);
+  if(editBase64Img) target.img = editBase64Img;
+  target.channel = channel;
+  target.type = type;
+  target.money = money;
+  target.desc = desc;
+  saveRef.set(allRecords);
+  closeEditModal();
+  showToast("记录修改已同步云端");
+}
+
+// 删除单条记录
+function delRecord(id){
+  if(!confirm("确定删除这条存取记录？云端数据会直接移除")) return;
+  allRecords = allRecords.filter(i=>i.id !== id);
+  saveRef.set(allRecords);
+  showToast("记录已删除");
+}
+
+// 计算总余额
+function calcBalance(){
+  let bal = 0;
+  allRecords.forEach(i=>{
+    i.type === "save" ? bal += i.money : bal -= i.money;
+  });
+  return bal;
+}
+
+// 渲染页面
+function renderPage(){
+  const bal = calcBalance();
+  document.getElementById("totalBalance").innerText = bal.toFixed(2);
+  const listWrap = document.getElementById("recordList");
+  if(allRecords.length === 0){
+    listWrap.innerHTML = `<div class="empty-tip">暂无存钱记录，新建第一笔吧～</div>`;
+    return;
+  }
+  let html = "";
+  allRecords.forEach(item=>{
+    const isSave = item.type === "save";
+    const typeText = isSave ? "存入存款" : "支取现金";
+    const typeClass = isSave ? "type-save" : "type-take";
+    const moneyClass = isSave ? "money-add" : "money-minus";
+    const sign = isSave ? "+" : "-";
+    let imgHtml = "";
+    if(item.img){
+      imgHtml = `<img class="list-img" src="${item.img}" alt="转账截图">`;
+    }
+    html += `
+    <div class="list-item">
+      <div class="list-top">
+        <span class="list-type ${typeClass}">${typeText}｜${item.channel}</span>
+        <span class="list-money ${moneyClass}">${sign}${item.money.toFixed(2)}元</span>
+      </div>
+      <div class="list-meta">
+        时间：${item.time}
+        ${item.desc ? "<br>备注："+item.desc : ""}
+      </div>
+      ${imgHtml}
+      <div class="list-btn-wrap">
+        <button class="btn-edit" onclick="openEditModal(${item.id})">编辑</button>
+        <button class="btn-del" onclick="delRecord(${item.id})">删除</button>
+      </div>
+    </div>`;
+  });
+  listWrap.innerHTML = html;
+}
+
+// 实时监听云端数据
+saveRef.on("value", snap=>{
+  allRecords = snap.val() || [];
+  renderPage();
+});
+
+window.onload = ()=>showToast("云端存钱银行连接成功！");
+</script>
+</body>
+</html>
